@@ -16,29 +16,31 @@ return axios.post(
     `${apiUrl}/login`,
     { username, password },
     requestOptions
-).then(response => {
-    const responseStatus = response.status;
+).then(async response => {
     const responseData = response.data;
     const userId = responseData.data.userId;
     const token = responseData.data.authToken;
 
     console.log('Response Status:', responseData);
 
+    // search for desk id
+    const queryParams = {
+        deskIdentifier 	: process.env.BOOK_DESK_NAME
+    }
+    let deskId = await getAllDesks(userId, token, queryParams)
+    
+    // WIP: construct booking data
     const bookingData = {
-        "roomId": "1b525adc73523", // for SP-C30
-        "startDate": "2023-10-14T14:00:00+08:00",
-        "endDate": "2023-10-14T18:00:00+08:00",
+        "roomId": deskId,
+        "startDate": process.env.START_BOOK_DATE, // update this
+        "endDate": process.env.END_BOOK_DATE, // update this
         "organizer": userId,
         "subject": "Booked"
     }
 
+    // book desk
     createBooking(userId, token, bookingData)
 
-    // const queryParams = {}
-    // getAllDesks(userId, token, queryParams)
-
-    // continue with booking request
-    // return { responseStatus, responseData };
 }).catch((error) => {
     console.log(error);
 });
@@ -59,23 +61,15 @@ function createBooking(userId, authToken, bookingData) {
         requestOptions
     ).then(response => {
         const responseData = response.data;
-    
+
         console.log('Response Status:', responseData);
-    
-        // continue with booking request
-        // return { responseStatus, responseData };
     }).catch((error) => {
-        // throw new RequestError(
-        //     error.response.data.message,
-        //     error.response.status,
-        //     error.response.data
-        // );
         console.log(error)
     });
 }
 
 
-// test get all desks
+// get desk id from desk name
 function getAllDesks(userId, authToken, queryParams) {
     const requestOptions = {
         headers: {
@@ -83,15 +77,7 @@ function getAllDesks(userId, authToken, queryParams) {
             "X-Auth-Token": authToken,
         },
         params: {
-            country: queryParams.country,
-            city: queryParams.city,
-            building: queryParams.building,
-            floor: queryParams.floor,
-            date: queryParams.date,
-            status: queryParams.status,
-            pageNumber: queryParams.pageNumber,
-            pageSize: queryParams.pageSize,
-            sort: queryParams.sort,
+            deskIdentifier: queryParams.deskIdentifier
         },
     };
 
@@ -100,11 +86,7 @@ function getAllDesks(userId, authToken, queryParams) {
         requestOptions
     ).then(response => {
         const responseData = response.data;
-    
-        console.log('Response Status:', responseData);
-    
-        // continue with booking request
-        // return { responseStatus, responseData };
+        return responseData.data[0].id
     }).catch((error) => {
         console.log(error);
     });
