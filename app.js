@@ -2,7 +2,7 @@ const axios = require('axios');
 
 const apiUrl = 'https://29581.humly.cloud/api/v1';
 
-const username = "user@pcs-security.com"
+const username = "username"
 const password = "insert password here"
 
 const requestOptions = {
