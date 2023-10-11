@@ -1,9 +1,16 @@
 # humlybooking
 Script to automate booking of desks with Humly Booking
 
-requires axios
+requires axios, dotenv
 
+to install dependencies:
+```
 npm install axios
+npm install dotenv
+```
 
-to run:
+to run app:
+update login credentials in .env file
+```
 node app.js
+```

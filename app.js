@@ -1,9 +1,10 @@
+require('dotenv').config();
 const axios = require('axios');
 
-const apiUrl = 'https://29581.humly.cloud/api/v1';
+const apiUrl = process.env.API_URL;
 
-const username = "username"
-const password = "insert password here"
+const username = process.env.HUMLY_USERNAME
+const password = process.env.HUMLY_PASSWORD
 
 const requestOptions = {
     headers: {
@@ -26,6 +27,3 @@ return axios.post(
 }).catch((error) => {
     console.log(error);
 });
-
-
-
