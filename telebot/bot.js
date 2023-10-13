@@ -182,9 +182,9 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
                         let fromTime = moment();
                         let toTime = moment();
                         if (fromText != "now") {
-                            fromTime = moment().set('hour', fromText);
+                            fromTime = moment().set('hour', fromText).set('minute', 0);
                         }
-                        toTime = moment().set('hour', toText)
+                        toTime = moment().set('hour', toText).set('minute', 0)
                         const booking = {
                             "username": users[`${
                                 msg.from.username
@@ -193,8 +193,8 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
                                 msg.from.username
                             }`].password,
                             "desk": seat,
-                            "startTime": fromTime.add(1, 'day').format("YYYY-MM-DDTHH:mm:ssZ"),
-                            "endTime": toTime.add(1, 'day').format("YYYY-MM-DDTHH:mm:ssZ")
+                            "startTime": fromTime.format("YYYY-MM-DDTHH:mm:ssZ"),
+                            "endTime": toTime.format("YYYY-MM-DDTHH:mm:ssZ")
                         }
                         const response = await HumlyBooking(booking.username,booking.password,booking.desk,booking.startTime,booking.endTime)
                         // await bot.sendMessage(toMsg.chat.id, JSON.stringify(response))
