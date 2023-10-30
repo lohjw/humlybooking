@@ -31,3 +31,4 @@ yarn-error.log*
 
 /telebot/.env
 /telebot/node_modules
+/telebot/users.json

@@ -5,6 +5,7 @@ const moment = require('moment');
 
 const axios = require('axios');
 const apiUrl = process.env.API_URL;
+const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
 function HumlyBooking(toMsg, username, password, desk, startTime, endTime) {
     return axios.post(`${apiUrl}/login`, {
@@ -39,9 +40,9 @@ function HumlyBooking(toMsg, username, password, desk, startTime, endTime) {
         // book desk
         let res = await createBooking(userId, token, bookingData)
         if (res.status == 'success') {
-            return await bot.sendMessage(toMsg.chat.id, "Booking Completed")
+            return await bot.sendMessage(toMsg.chat.id, `Booking Completed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}`)
         } else {
-            return await bot.sendMessage(toMsg.chat.id, "Booking Failed. Please try again")
+            return await bot.sendMessage(toMsg.chat.id, `Booking Failed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}\nPlease try again`)
         }
     }).catch((error) => {
         console.log(error);
@@ -90,8 +91,6 @@ function getAllDesks(userId, authToken, queryParams) {
 }
 
 
-const bot = new TelegramBot(process.env.TEST_BOT_TOKEN, { polling: true });
-
 function jsonReader(filePath, cb) {
     fs.readFile(filePath, (err, fileData) => {
         if (err) {
@@ -111,6 +110,11 @@ function split(str, index) {
 
     return result;
 }
+bot.onText(/\/start/, (msg) => {
+
+    bot.sendMessage(msg.chat.id, "Welcome, please /config your credential and then /book your seats");
+
+});
 
 bot.onText(/\/config/, async msg => {
     const userNamePrompt = await bot.sendMessage(msg.chat.id, `Hi @${msg.from.username
@@ -179,7 +183,7 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
             bot.onReplyToMessage(msg.chat.id, seatPrompt.message_id, async (seatMsg) => {
                 booking.desk = seatMsg.text.toLocaleUpperCase();
                 // 2. From what time
-                const fromPrompt = await bot.sendMessage(seatMsg.chat.id, "From what time?", {
+                const fromPrompt = await bot.sendMessage(seatMsg.chat.id, "From when?", {
                     reply_markup: {
                         force_reply: true
                     }
@@ -205,7 +209,7 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
                             }
                         }
                         // 3. To what time
-                        const toPrompt = await bot.sendMessage(fromMsg.chat.id, "To what time?", {
+                        const toPrompt = await bot.sendMessage(fromMsg.chat.id, "To when?", {
                             reply_markup: {
                                 force_reply: true
                             }
@@ -234,4 +238,61 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
                 }, Please setup your account using \`/config\``)
         }
     });
+});
+
+bot.onText(/\/bookweekly/, async msg => {
+    jsonReader("./users.json", async (err, users) => {
+        if (err) {
+            console.log("Error reading file:", err);
+            return;
+        }
+        if (users[`${msg.from.username
+            }`]) {
+            const booking = {
+                "username": users[`${msg.from.username
+                    }`].username,
+                "password": users[`${msg.from.username
+                    }`].password,
+                "desk": "",
+                "startTime": "",  //fromTime.format("YYYY-MM-DDTHH:mm:ssZ")
+                "endTime": ""     //toTime.format("YYYY-MM-DDTHH:mm:ssZ")
+            }
+
+            const seatPrompt = await bot.sendMessage(msg.chat.id, `Hi @${msg.from.username
+                }, Which seat are you booking?`, {
+                reply_markup: {
+                    force_reply: true
+                }
+            });
+            bot.onReplyToMessage(msg.chat.id, seatPrompt.message_id, async (seatMsg) => {
+                booking.desk = seatMsg.text.toLocaleUpperCase();
+
+                try {
+                    const currentDateIndex = moment().isoWeekday();
+                    if (currentDateIndex > 5) {
+                        for (let index = 1; index < 6; index++) {
+                            let fromTime = moment().add(1, 'week').isoWeekday(index).set('hour', 10).set('minute', 0);
+                            let toTime = moment().add(1, 'week').isoWeekday(index).set('hour', 18).set('minute', 0);
+                            booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                            booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                            await HumlyBooking(seatMsg, booking.username, booking.password, booking.desk, booking.startTime, booking.endTime)
+                        }
+                    } else {
+                        for (let index = currentDateIndex; index < 6; index++) {
+                            let fromTime = moment().isoWeekday(index).set('hour', 10).set('minute', 0);
+                            let toTime = moment().isoWeekday(index).set('hour', 18).set('minute', 0);
+                            booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                            booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                            await HumlyBooking(seatMsg, booking.username, booking.password, booking.desk, booking.startTime, booking.endTime)
+                        }
+                    }
+                } catch (error) {
+                    console.log(error)
+                }
+            })
+        } else {
+            await bot.sendMessage(msg.chat.id, `Hi @${msg.from.username
+                }, Please setup your account using \`/config\``)
+        }
+    })
 });
