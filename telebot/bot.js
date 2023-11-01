@@ -173,7 +173,7 @@ bot.onText(/\/config/, async msg => {
                     console.log("Error reading file:", err);
                     return;
                 }
-                users[`${msg.from.username
+                users[`${msg.from.id
                     }`] = userConfig
 
                 fs.writeFile("./users.json", JSON.stringify(users, null, 4), err => {
@@ -193,12 +193,12 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
             console.log("Error reading file:", err);
             return;
         }
-        if (users[`${msg.from.username
+        if (users[`${msg.from.id
             }`]) {
             const booking = {
-                "username": users[`${msg.from.username
+                "username": users[`${msg.from.id
                     }`].username,
-                "password": users[`${msg.from.username
+                "password": users[`${msg.from.id
                     }`].password,
                 "desk": "",
                 "startTime": "",  //fromTime.format("YYYY-MM-DDTHH:mm:ssZ")
@@ -276,12 +276,12 @@ bot.onText(/\/weekly/, async msg => {
             console.log("Error reading file:", err);
             return;
         }
-        if (users[`${msg.from.username
+        if (users[`${msg.from.id
             }`]) {
             const booking = {
-                "username": users[`${msg.from.username
+                "username": users[`${msg.from.id
                     }`].username,
-                "password": users[`${msg.from.username
+                "password": users[`${msg.from.id
                     }`].password,
                 "desk": "",
                 "startTime": "",  //fromTime.format("YYYY-MM-DDTHH:mm:ssZ")
