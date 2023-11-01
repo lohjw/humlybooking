@@ -7,7 +7,33 @@ const axios = require('axios');
 const apiUrl = process.env.API_URL;
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
-function HumlyBooking(toMsg, username, password, desk, startTime, endTime) {
+const schedule = require('node-schedule');
+schedule.scheduleJob('0 */1 * * *', function (fireDate) {
+    jsonReader("./seats.json", async (err, seatsfile) => {
+        jsonReader("./users.json", async (err, usersfile) => {
+            const seatings = seatsfile.seats;
+            const users = Object.values(usersfile);
+            console.log(`START => ${new Date()}`)
+            for (let i = 0; i < seatings.length; i++) {
+                // console.log(seatings[i])
+                // console.log(users[i%users.length])
+
+                const booking = {
+                    "username": users[i % users.length].username,
+                    "password": users[i % users.length].password,
+                    "desk": seatings[i],
+                    "startTime": moment().set('hour', 10).set('minute', 0).format("YYYY-MM-DDTHH:mm:ssZ"),  //fromTime.format("YYYY-MM-DDTHH:mm:ssZ")
+                    "endTime": moment().set('hour', 18).set('minute', 0).format("YYYY-MM-DDTHH:mm:ssZ")     //toTime.format("YYYY-MM-DDTHH:mm:ssZ")
+                }
+                console.log(booking)
+                await HumlyBook(booking.username, booking.password, booking.desk, booking.startTime, booking.endTime)
+            }
+            console.log(`END => ${new Date()}}`)
+        })
+    })
+});
+
+async function HumlyBook(username, password, desk, startTime, endTime) {
     return axios.post(`${apiUrl}/login`, {
         username,
         password
@@ -38,15 +64,19 @@ function HumlyBooking(toMsg, username, password, desk, startTime, endTime) {
         }
 
         // book desk
-        let res = await createBooking(userId, token, bookingData)
-        if (res.status == 'success') {
-            return await bot.sendMessage(toMsg.chat.id, `Booking Completed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}`)
-        } else {
-            return await bot.sendMessage(toMsg.chat.id, `Booking Failed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}\nPlease try again`)
-        }
+        return await createBooking(userId, token, bookingData)
     }).catch((error) => {
         console.log(error);
     });
+}
+
+async function HumlyBooking(toMsg, username, password, desk, startTime, endTime) {
+    let res = await HumlyBook(username, password, desk, startTime, endTime)
+    if (res.status == 'success') {
+        return await bot.sendMessage(toMsg.chat.id, `Booking Completed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}`)
+    } else {
+        return await bot.sendMessage(toMsg.chat.id, `Booking Failed for ${moment(startTime).format("MMM D, ddd h:mm A")} to ${moment(endTime).format("LT")}\nPlease try again`)
+    }
 }
 
 // create booking
@@ -240,7 +270,7 @@ bot.onText(/\/book/, async msg => { // 1. Get seat number
     });
 });
 
-bot.onText(/\/bookweekly/, async msg => {
+bot.onText(/\/weekly/, async msg => {
     jsonReader("./users.json", async (err, users) => {
         if (err) {
             console.log("Error reading file:", err);
