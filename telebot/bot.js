@@ -224,6 +224,9 @@ function split(str, index) {
 
   return result;
 }
+
+const wait = [];
+
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(
     msg.chat.id,
@@ -289,146 +292,13 @@ bot.onText(/\/config/, async (msg) => {
 });
 
 bot.onText(/\/book/, async (msg) => {
-  // check if is group or private message
-  if (msg.chat.type == "group") {
-    // 1. Get seat number
     jsonReader("./users.json", async (err, users) => {
       if (err) {
         console.log("Error reading file:", err);
         return;
       }
       if (users[`${msg.from.id}`]) {
-        const booking = {
-          username: users[`${msg.from.id}`].username,
-          password: users[`${msg.from.id}`].password,
-          desk: "",
-          startTime: "", //fromTime.format("YYYY-MM-DDTHH:mm:ssZ")
-          endTime: "", //toTime.format("YYYY-MM-DDTHH:mm:ssZ")
-        };
-        const seatPrompt = await bot.sendMessage(
-          msg.chat.id,
-          `Hi @${msg.from.username}, Which seat are you booking?`,
-          {
-            reply_markup: {
-              force_reply: true,
-            },
-          }
-        );
-        bot.onReplyToMessage(
-          msg.chat.id,
-          seatPrompt.message_id,
-          async (seatMsg) => {
-            booking.desk = seatMsg.text.toLocaleUpperCase();
-            // 2. From what time
-            const fromPrompt = await bot.sendMessage(
-              seatMsg.chat.id,
-              "From when?",
-              {
-                reply_markup: {
-                  force_reply: true,
-                },
-              }
-            );
-            bot.onReplyToMessage(
-              seatMsg.chat.id,
-              fromPrompt.message_id,
-              async (fromMsg) => {
-                let fromText = fromMsg.text;
-                if (!isNaN(Number(fromText))) {
-                  let fromTime = moment();
-                  let toTime = moment();
-                  if (fromText != "now") {
-                    if (fromText.includes("all")) {
-                      toTime = moment().set("hour", 23).set("minute", 59);
-                      booking.startTime = fromTime.format(
-                        "YYYY-MM-DDTHH:mm:ssZ"
-                      );
-                      booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
-                      return await HumlyBooking(
-                        fromMsg,
-                        booking.username,
-                        booking.password,
-                        booking.desk,
-                        booking.startTime,
-                        booking.endTime
-                      );
-                    } else {
-                      if (fromText.length <= 2) {
-                        fromText = fromText + "00";
-                      }
-                      const [hour, minute] = split(fromText, -2);
-                      fromTime = fromTime
-                        .set("hour", Number(hour))
-                        .set("minute", Number(minute));
-                      booking.startTime = fromTime.format(
-                        "YYYY-MM-DDTHH:mm:ssZ"
-                      );
-                    }
-                  }
-                  // 3. To what time
-                  const toPrompt = await bot.sendMessage(
-                    fromMsg.chat.id,
-                    "To when?",
-                    {
-                      reply_markup: {
-                        force_reply: true,
-                      },
-                    }
-                  );
-                  bot.onReplyToMessage(
-                    fromMsg.chat.id,
-                    toPrompt.message_id,
-                    async (toMsg) => {
-                      let toText = toMsg.text;
-                      if (!isNaN(Number(toText))) {
-                        if (toText.length <= 2) {
-                          toText = toText + "00";
-                        }
-                        const [hour, minute] = split(toText, -2);
-                        toTime = moment()
-                          .set("hour", hour)
-                          .set("minute", minute);
-                        booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
-                        return await HumlyBooking(
-                          toMsg,
-                          booking.username,
-                          booking.password,
-                          booking.desk,
-                          booking.startTime,
-                          booking.endTime
-                        );
-                      } else {
-                        bot.sendMessage(
-                          toMsg.chat.id,
-                          "Error: Please provide time in [HH] or [HHmm]"
-                        );
-                      }
-                    }
-                  );
-                } else {
-                  bot.sendMessage(
-                    fromMsg.chat.id,
-                    "Error: Please provide time in [HH] or [HHmm]"
-                  );
-                }
-              }
-            );
-          }
-        );
-      } else {
-        await bot.sendMessage(
-          msg.chat.id,
-          `Hi @${msg.from.username}, Please setup your account using \`/config\``
-        );
-      }
-    });
-  } else {
-    jsonReader("./users.json", async (err, users) => {
-      if (err) {
-        console.log("Error reading file:", err);
-        return;
-      }
-      if (users[`${msg.from.id}`]) {
+        wait.push(msg.from.id);
         const booking = {
           username: users[`${msg.from.id}`].username,
           password: users[`${msg.from.id}`].password,
@@ -459,53 +329,71 @@ bot.onText(/\/book/, async (msg) => {
                 },
               })
               .then(() => {
-                answerCallbacks[msg.from.id] = async function (fromMsg) {
-                  let fromText = fromMsg.text;
-                  let fromTime = moment();
-                  let toTime = moment();
-                  if (fromText == "All Day") {
-                    toTime = moment().set("hour", 23).set("minute", 59);
-                    booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
-                    booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
-                    return await HumlyBooking(
-                      fromMsg,
-                      booking.username,
-                      booking.password,
-                      booking.desk,
-                      booking.startTime,
-                      booking.endTime
-                    );
-                  } else if (fromText == "Now") {
-                    booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                answerCallbacks[msg.from.id] = async function fromTimeTrigger(
+                  fromMsg
+                ) {
+                  if (wait.includes(fromMsg.from.id)) {
+                    let fromText = fromMsg.text;
+                    let fromTime = moment();
+                    let toTime = moment();
+  
+                    if (fromText == "All") {
+                      toTime = moment().set("hour", 23).set("minute", 59);
+                      booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                      booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                      wait.splice(wait.indexOf(msg.chat.id), 1);
+                      return await HumlyBooking(
+                        fromMsg,
+                        booking.username,
+                        booking.password,
+                        booking.desk,
+                        booking.startTime,
+                        booking.endTime
+                      );
+                    } else if (fromText == "Now") {
+                      booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                    } else {
+                      fromTime = fromTime
+                        .set("hour", Number(fromText))
+                        .set("minute", Number(0));
+                      booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                    }
+                    // 3. To what time
+                    bot
+                      .sendMessage(fromMsg.chat.id, "To when?", {
+                        reply_markup: {
+                          keyboard,
+                          one_time_keyboard: true,
+                        },
+                      })
+                      .then(() => {
+                        answerCallbacks[msg.from.id] =
+                          async function toTimeTrigger(toMsg) {
+                            if (wait.includes(toMsg.from.id)) {
+                              let toText = toMsg.text;
+                              toTime = moment()
+                                .set("hour", toText)
+                                .set("minute", 0);
+                              booking.endTime = toTime.format(
+                                "YYYY-MM-DDTHH:mm:ssZ"
+                              );
+                              wait.splice(wait.indexOf(msg.chat.id), 1);
+                              return await HumlyBooking(
+                                toMsg,
+                                booking.username,
+                                booking.password,
+                                booking.desk,
+                                booking.startTime,
+                                booking.endTime
+                              );
+                            } else {
+                              toTimeTrigger(toMsg);
+                            }
+                          };
+                      });
                   } else {
-                    fromTime = fromTime
-                      .set("hour", Number(fromText))
-                      .set("minute", Number(0));
-                    booking.startTime = fromTime.format("YYYY-MM-DDTHH:mm:ssZ");
+                    fromTimeTrigger(fromMsg);
                   }
-                  // 3. To what time
-                  bot
-                    .sendMessage(fromMsg.chat.id, "To when?", {
-                      reply_markup: {
-                        keyboard,
-                        one_time_keyboard: true,
-                      },
-                    })
-                    .then(() => {
-                      answerCallbacks[msg.from.id] = async function (toMsg) {
-                        let toText = toMsg.text;
-                        toTime = moment().set("hour", toText).set("minute", 0);
-                        booking.endTime = toTime.format("YYYY-MM-DDTHH:mm:ssZ");
-                        return await HumlyBooking(
-                          toMsg,
-                          booking.username,
-                          booking.password,
-                          booking.desk,
-                          booking.startTime,
-                          booking.endTime
-                        );
-                      };
-                    });
                 };
               });
           }
@@ -517,8 +405,7 @@ bot.onText(/\/book/, async (msg) => {
         );
       }
     });
-  }
-});
+  });
 
 bot.onText(/\/weekly/, async (msg) => {
   jsonReader("./users.json", async (err, users) => {
