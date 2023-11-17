@@ -5,7 +5,7 @@ const moment = require("moment");
 
 const axios = require("axios");
 const apiUrl = process.env.API_URL;
-const bot = new TelegramBot(process.env.TEST_BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
 const schedule = require("node-schedule");
 
@@ -265,13 +265,13 @@ function getAllBookings(username, password) {
                         const seatName = seats[responseData[i].booking.location]
                         const startTime = moment(responseData[i].booking.startDate).format('HH:mm')
                         const endTime = moment(responseData[i].booking.endDate).format('HH:mm')
-                        const day = moment(responseData[i].booking.startDate).format("L")
+                        const day = moment(responseData[i].booking.startDate).format("DD/MM/YYYY")
 
                         output.push([
                             {
-                                text: `${seatName}: ${day} from ${startTime}-${endTime}`,
+                                text: `💺${seatName} 📅${day} 🕔${startTime}-${endTime}`,
                                 callback_data: responseData[i]._id,
-                            }
+                            }  
                         ])
 
                     }
@@ -350,7 +350,7 @@ function deleteBooking(username, password, bookingId) {
             ).then(response => {
                 const responseData = response.data;
                 console.log(responseData)
-                // return responseData.data[0].name
+                return responseData
             }).catch((error) => {
                 console.log(error);
             });
